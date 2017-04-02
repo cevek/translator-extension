@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Title</title>
+    <style>
+        div {
+            display: inline-block;
+            width: 100px;
+        }
+
+        li {
+            margin: 100px 50px;
+        }
+
+        .unknown {
+            background: #ffe7de;
+        }
+    </style>
+</head>
+<body>
+<div id="loading">Loading...</div>
+<script src="dict.js"></script>
+<script>
+
+
+    function getUserKey() {
+        let userKey = localStorage.getItem('userKey');
+        if (!userKey) {
+            const login = prompt('Enter your login');
+            const pass = prompt('Enter your password');
+            if (login && pass) {
+                return crypto.subtle.digest('SHA-256', new TextEncoder().encode(login + pass)).then(hash => (new Uint32Array(hash))[0].toString(36)).then(userKey => {
+                    localStorage.setItem('userKey', userKey);
+                    return userKey;
+                })
+            } else {
+                return Promise.reject('Skipped login or pass')
+            }
+        }
+        return Promise.resolve(userKey);
+    }
+
+    let words = Object.keys(DICT);
+    const div = document.createElement('div');
+
+    getFromFirebase().then((data) => {
+        const loading = document.getElementById('loading');
+        loading.parentNode.removeChild(loading);
+        let ol = document.createElement('ol');
+        document.body.appendChild(ol);
+        let li;
+        for (let i = 0; i < words.length; i++) {
+            if (i % 500 === 0) {
+                li = document.createElement('li');
+                ol.appendChild(li)
+            }
+            const div = document.createElement('div');
+            div.onclick = click;
+            div.textContent = words[i];
+            setColor(data, div, words[i]);
+            li.appendChild(div);
+        }
+        function click(e) {
+            let target = e.currentTarget;
+            if (data.unknownWords[target.textContent]) {
+                data.unknownWords[target.textContent] = void 0;
+            } else {
+                data.unknownWords[target.textContent] = 1;
+            }
+            data.dataVersion++;
+            data.lastUpdated = Date.now();
+            setColor(data, target, target.textContent);
+            localStorage.setItem('data', JSON.stringify(data));
+            saveToFirebase(data);
+        }
+    });
+
+
+    let timeout;
+    function saveToFirebase(data) {
+        getUserKey().then((userKey) => {
+            clearTimeout(timeout);
+            timeout = setTimeout(() => {
+                fetch('https://translator-7b51e.firebaseio.com/data/' + userKey + '.json', {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(data)
+                })
+            }, 5000);
+        });
+    }
+
+
+    function getFromFirebase() {
+        const initValue = {"structVersion": 1, "dataVersion": 1, "lastUpdated": 0, "unknownWords": {}};
+        let localData = JSON.parse(localStorage.getItem('data') || 'null') || initValue;
+
+        return getUserKey().then((userKey) => {
+            return fetch('https://translator-7b51e.firebaseio.com/data/' + userKey + '.json').then(res => res.json()).then(data => {
+                if (!data) {
+                    data = localData;
+                }
+                if (data.dataVersion < localData.dataVersion) {
+                    data = localData;
+                }
+                return data;
+            }, () => localData)
+        });
+    }
+
+    function setColor(data, div, word) {
+        if (data.unknownWords[word]) {
+            div.className = 'unknown';
+        } else {
+            div.className = '';
+        }
+    }
+
+
+</script>
+</body>
+</html>

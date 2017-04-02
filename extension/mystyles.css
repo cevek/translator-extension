@@ -1,0 +1,20 @@
+.translate-word {
+    background: rgba(255, 100, 0, .03);
+}
+
+.translate-word:hover {
+    position: relative;
+}
+
+.translate-word:hover:before {
+    position: absolute;
+    margin-top: -1.8em;
+    font-size: 12px;
+    background: white;
+    padding: 3px;
+    left: 50%;
+    transform: translateX(-50%);
+    content: attr(data-translation);
+    box-shadow: 0 0 2px rgba(0,0,0,.2);
+    white-space: nowrap;
+}

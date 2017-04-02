@@ -11,7 +11,7 @@ function find(dom) {
         return;
     } else if (type === 1) {
         var localName = dom.localName;
-        if (localName === 'script' || localName === 'style') return;
+        if (localName === 'script' || localName === 'style' || dom.className === 'translate-word') return;
         var subdom = dom.firstChild;
         while (subdom !== null) {
             find(subdom);
@@ -81,6 +81,22 @@ function findWord(replaceWords, content, start, end) {
     }
     return replaceWords;
 }
+
+const observer = new MutationObserver((mutations) => {
+    for (let i = 0; i < mutations.length; i++) {
+        const mut = mutations[i];
+        for (let j = 0; j < mut.addedNodes.length; j++) {
+            const node = mut.addedNodes[j];
+            find(node);
+        }
+    }
+});
+
+observer.observe(document.body, {
+    attributes: false,
+    childList: true,
+    characterData: false
+});
 
 console.time('tree');
 if (document.body !== null) {
